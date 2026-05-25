@@ -1,8 +1,7 @@
-version: '3'
-
 services:
   se-server:
-    image: mmmaxwwwell/space-engineers-dedicated-docker-linux:latest
+    build: .
+    image: space-engineers-dedicated:latest
     container_name: space-engineers-dedicated-docker-linux
     restart: unless-stopped
     volumes:
@@ -12,4 +11,15 @@ services:
       - ./appdata/space-engineers/bins/SpaceEngineersDedicated:/appdata/space-engineers/SpaceEngineersDedicated
       - ./appdata/space-engineers/bins/steamcmd:/home/wine/.steam
     ports:
-     - "27016:27016/udp"
+      - "27016:27016/udp"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f SpaceEngineersDedicated || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"

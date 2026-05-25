@@ -3,7 +3,7 @@ set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-source ~/.profile    || die "Failed to source ~/.profile"
+source ~/.profile     || die "Failed to source ~/.profile"
 source ~/.bash_profile || die "Failed to source ~/.bash_profile"
 
 SERVER_DIR=/appdata/space-engineers/SpaceEngineersDedicated/DedicatedServer64
@@ -13,6 +13,9 @@ SERVER_EXE="$SERVER_DIR/SpaceEngineersDedicated.exe"
 [ -f "$SERVER_EXE" ] || die "SpaceEngineersDedicated.exe not found at $SERVER_EXE — did steamcmd finish successfully?"
 
 cd "$SERVER_DIR"
-env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
+env WINEARCH=win64 \
+    WINEDEBUG=-all \
+    WINEDLLOVERRIDES="mscoree=n,b;mshtml=n,b" \
+    WINEPREFIX=/wineprefix \
   wine "$SERVER_EXE" -noconsole -path Z:\\appdata\\space-engineers\\SpaceEngineersDedicated -ignorelastsession \
   || die "SpaceEngineersDedicated.exe exited with error (exit code $?)"

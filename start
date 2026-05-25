@@ -18,5 +18,5 @@ if [ "$(stat -c '%u' appdata)" != "1000" ]; then
     sudo chown -R 1000:1000 appdata || die "Failed to chown appdata to 1000:1000"
 fi
 
-sudo docker-compose up -d || die "Failed to start container"
-sudo docker-compose logs -f
+sudo docker compose up -d --build || die "Failed to start container"
+sudo docker compose logs -f
