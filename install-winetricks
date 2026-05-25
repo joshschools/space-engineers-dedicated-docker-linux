@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+Xvfb :5 -screen 0 1024x768x16 &
+XVFB_PID=$!
+sleep 1
+kill -0 "$XVFB_PID" 2>/dev/null || die "Xvfb failed to start"
+
+env WINEARCH=win64 WINEDEBUG=-all WINEDLLOVERRIDES="mscoree=d" WINEPREFIX=/wineprefix wineboot --init /nogui \
+  || die "wineboot --init failed"
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix ./winetricks corefonts \
+  || die "winetricks corefonts failed"
+env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix ./winetricks -q vcrun2017 \
+  || die "winetricks vcrun2017 failed"
+env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix ./winetricks -q --force dotnet48 \
+  || die "winetricks dotnet48 failed"
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix ./winetricks sound=disabled \
+  || die "winetricks sound=disabled failed"
+env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix ./winetricks -q vcrun2013 \
+  || die "winetricks vcrun2013 failed"
+
+kill "$XVFB_PID" 2>/dev/null || true
+rm -rf ~/.cache

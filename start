@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+sudo mkdir -p appdata/space-engineers/bins/SpaceEngineersDedicated || die "Failed to create SpaceEngineersDedicated directory"
+sudo mkdir -p appdata/space-engineers/bins/steamcmd || die "Failed to create steamcmd directory"
+sudo mkdir -p appdata/space-engineers/config/World || die "Failed to create World directory"
+sudo mkdir -p appdata/space-engineers/config/Plugins || die "Failed to create Plugins directory"
+
+if [ ! -f ./appdata/space-engineers/config/World/Sandbox.sbc ]; then
+    echo "World not found, initializing empty star system..."
+    sudo unzip -n star-system.zip -d ./appdata/space-engineers/config || die "Failed to extract star-system.zip"
+fi
+
+if [ "$(stat -c '%u' appdata)" != "1000" ]; then
+    echo "Setting owner of appdata to UID 1000"
+    sudo chown -R 1000:1000 appdata || die "Failed to chown appdata to 1000:1000"
+fi
+
+sudo docker-compose up -d || die "Failed to start container"
+sudo docker-compose logs -f
