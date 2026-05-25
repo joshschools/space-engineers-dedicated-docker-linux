@@ -9,7 +9,7 @@ RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
         ca-certificates wget gnupg2 \
-        xvfb cabextract unzip curl lib32gcc-s1 \
+        xvfb cabextract unzip curl lib32gcc-s1 xz-utils \
  && mkdir -pm755 /etc/apt/keyrings \
  && wget -O /etc/apt/keyrings/winehq-archive.key \
         https://dl.winehq.org/wine-builds/winehq.key \
@@ -25,8 +25,10 @@ RUN wget -q -O /usr/local/bin/winetricks \
         https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/local/bin/winetricks
 
-# Create wine user — UID 1000 must match the chown in the start script
-RUN useradd -m -u 1000 -s /bin/bash wine
+# Ubuntu 24.04 base ships an 'ubuntu' user at UID 1000 — rename it to 'wine'
+# rather than creating a new one; UID 1000 must match the chown in the start script
+RUN usermod -l wine -d /home/wine -m ubuntu \
+ && groupmod -n wine ubuntu
 
 # Install SteamCMD under the wine user; symlink to PATH
 RUN mkdir -p /home/wine/steamcmd \
