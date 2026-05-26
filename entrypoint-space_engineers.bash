@@ -12,7 +12,7 @@ SERVER_EXE="$SERVER_DIR/SpaceEngineersDedicated.exe"
 cd "$SERVER_DIR"
 env WINEARCH=win64 \
     WINEDEBUG=-all \
-    WINEDLLOVERRIDES="mscoree=n,b;mshtml=n,b" \
+    WINEDLLOVERRIDES="mscoree=n,b;mshtml=n,b;msvcp140=n,b;msvcp140_1=n,b;msvcp140_2=n,b;vcruntime140=n,b;vcruntime140_1=n,b" \
     WINEPREFIX=/wineprefix \
   wine "$SERVER_EXE" -noconsole -path Z:\\appdata\\space-engineers\\SpaceEngineersDedicated -ignorelastsession \
   || die "SpaceEngineersDedicated.exe exited with error (exit code $?)"
