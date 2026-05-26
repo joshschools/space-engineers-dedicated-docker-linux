@@ -16,6 +16,16 @@ env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   winetricks corefonts \
   || die "winetricks corefonts failed"
 
+# Wine 11 pre-populates .NET NDP registry keys that cause the dotnet40 installer
+# to exit 236 ("newer version detected") without installing any files. Delete them
+# so the installer sees a clean slate. The keys are recreated by the installer.
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
+  wine reg delete "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP" /f \
+  2>/dev/null || true
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
+  wine reg delete "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\NET Framework Setup\\NDP" /f \
+  2>/dev/null || true
+
 # dotnet40 must be installed before dotnet48 (48 is a patch on top of 40)
 env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   winetricks -q --force dotnet40 \
