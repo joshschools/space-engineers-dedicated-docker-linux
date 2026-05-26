@@ -30,18 +30,33 @@ env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   winetricks -q vcrun2019 \
   || die "winetricks vcrun2019 failed"
 
-# winetricks creates HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64 but NOT
-# the Classes\Installer\Dependencies key that SE DS actually checks at startup.
-# Add it manually using the version winetricks installed.
-VCVER=$(env WINEPREFIX=/wineprefix wine reg query \
-  "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64" \
-  /v Version 2>/dev/null | awk '/Version/{print $NF}' | tr -d '\r')
-[ -n "$VCVER" ] || VCVER="14.42.34433.0"
-env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
-  wine reg add \
-  "HKLM\\SOFTWARE\\Classes\\Installer\\Dependencies\\Microsoft.VS.VC_RuntimeAdditionalVSU_amd64,v14" \
-  /v "Version" /t REG_SZ /d "$VCVER" /f \
-  || die "Failed to add VC++ Installer\\Dependencies registry key"
+# winetricks creates HKLM\...\VisualStudio\14.0\VC\Runtimes\x64 but NOT the
+# Classes\Installer\Dependencies key that SE DS actually checks at startup.
+# Write it directly to system.reg to avoid wineserver flush timing issues.
+python3 - << 'PYEOF'
+import re, sys
+
+reg = '/wineprefix/system.reg'
+with open(reg, 'r') as f:
+    content = f.read()
+
+m = re.search(r'Runtimes\\\\x64\].*?"Version"="([^"]+)"', content, re.DOTALL)
+vcver = m.group(1) if m else '14.42.34433.0'
+
+m2 = re.search(r'\[Software\\\\.+?\] (\d+)', content)
+ts = m2.group(1) if m2 else '1779755420'
+
+key = (
+    f'\n[Software\\\\Classes\\\\Installer\\\\Dependencies\\\\'
+    f'Microsoft.VS.VC_RuntimeAdditionalVSU_amd64,v14] {ts}\n'
+    f'#time=1dceca6d5365a46\n'
+    f'"Version"="{vcver}"\n'
+)
+with open(reg, 'a') as f:
+    f.write(key)
+print(f'Added Installer\\Dependencies registry key (version {vcver})')
+PYEOF
+[ $? -eq 0 ] || die "Failed to write VC++ Installer\\Dependencies registry key"
 
 # faudio provides XAudio2 support needed for headless audio init
 env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
