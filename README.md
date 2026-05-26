@@ -53,6 +53,17 @@ environment:
 
 Drop `.dll` plugin files into `appdata/space-engineers/config/Plugins/` and restart. The entrypoint auto-injects them into the server config.
 
+## Mods (Steam Workshop)
+
+Add Workshop mod IDs to `appdata/space-engineers/config/mods.txt`, one per line:
+
+```
+# Find the ID in the Workshop URL: steamcommunity.com/sharedfiles/filedetails/?id=XXXXXXXXXX
+1902970975
+```
+
+The server downloads mods automatically on startup via its Steam connection. Restart after changing the list.
+
 ## Building locally
 
 The pre-built image is pulled automatically. To build from source instead:

@@ -10,6 +10,7 @@ services:
       - ./appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg:/appdata/space-engineers/SpaceEngineersDedicated/SpaceEngineers-Dedicated.cfg
       - ./appdata/space-engineers/bins/SpaceEngineersDedicated:/appdata/space-engineers/SpaceEngineersDedicated
       - ./appdata/space-engineers/bins/steamcmd:/home/wine/.steam
+      - ./appdata/space-engineers/config/mods.txt:/appdata/space-engineers/mods.txt
     ports:
       - "27016:27016/udp"
     healthcheck:

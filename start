@@ -8,6 +8,12 @@ sudo mkdir -p appdata/space-engineers/bins/steamcmd || die "Failed to create ste
 sudo mkdir -p appdata/space-engineers/config/World || die "Failed to create World directory"
 sudo mkdir -p appdata/space-engineers/config/Plugins || die "Failed to create Plugins directory"
 
+if [ ! -f ./appdata/space-engineers/config/mods.txt ]; then
+    printf '# Steam Workshop mod IDs, one per line\n# Find the ID in the Workshop URL: ?id=XXXXXXXXXX\n# Example: 1902970975\n' \
+        | sudo tee appdata/space-engineers/config/mods.txt > /dev/null \
+        || die "Failed to create mods.txt"
+fi
+
 # Config must exist before unzip so the zip's stale config is never extracted (-n flag)
 if [ ! -f ./appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg ]; then
     echo "No config found — copying template..."
