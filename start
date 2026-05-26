@@ -8,6 +8,19 @@ sudo mkdir -p appdata/space-engineers/bins/steamcmd || die "Failed to create ste
 sudo mkdir -p appdata/space-engineers/config/World || die "Failed to create World directory"
 sudo mkdir -p appdata/space-engineers/config/Plugins || die "Failed to create Plugins directory"
 
+# Config must exist before unzip so the zip's stale config is never extracted (-n flag)
+if [ ! -f ./appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg ]; then
+    echo "No config found — copying template..."
+    sudo cp SpaceEngineers-Dedicated.cfg.template \
+        appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg \
+        || die "Failed to copy config template"
+    echo ""
+    echo "  Config created at appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg"
+    echo "  Edit it (add your Steam64 ID to <Administrators>), then run ./start again."
+    echo ""
+    exit 0
+fi
+
 if [ ! -f ./appdata/space-engineers/config/World/Sandbox.sbc ]; then
     echo "World not found, initializing empty star system..."
     sudo unzip -n star-system.zip -d ./appdata/space-engineers/config || die "Failed to extract star-system.zip"

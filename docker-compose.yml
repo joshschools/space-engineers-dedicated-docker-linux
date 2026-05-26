@@ -1,7 +1,7 @@
 services:
   se-server:
     build: .
-    image: space-engineers-dedicated:latest
+    image: ghcr.io/joshschools/space-engineers-dedicated-docker-linux:latest
     container_name: space-engineers-dedicated-docker-linux
     restart: unless-stopped
     volumes:
