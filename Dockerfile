@@ -35,7 +35,8 @@ RUN mkdir -p /home/wine/steamcmd \
  && curl -sqL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
     | tar xz -C /home/wine/steamcmd \
  && chown -R wine:wine /home/wine/steamcmd \
- && ln -s /home/wine/steamcmd/steamcmd.sh /usr/local/bin/steamcmd
+ && printf '#!/bin/bash\ncd /home/wine/steamcmd\nexec ./steamcmd.sh "$@"\n' > /usr/local/bin/steamcmd \
+ && chmod +x /usr/local/bin/steamcmd
 
 # Set up Wine prefix and appdata skeleton
 RUN mkdir -p /wineprefix /appdata/space-engineers/bins /appdata/space-engineers/config \
