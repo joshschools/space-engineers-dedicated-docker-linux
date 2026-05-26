@@ -18,7 +18,7 @@ env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
 
 # dotnet40 must be installed before dotnet48 (48 is a patch on top of 40)
 env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
-  winetricks -q dotnet40 \
+  winetricks -q --force dotnet40 \
   || die "winetricks dotnet40 failed"
 
 env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
