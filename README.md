@@ -4,6 +4,8 @@ Modernized Docker image for running a Space Engineers Dedicated Server on Linux 
 
 **Stack:** Ubuntu 24.04 · Wine 11 (WineHQ stable) · SteamCMD · Docker Compose v2
 
+**Features:** Steam Workshop mod support · Plugin DLL support · Auto-updates via SteamCMD · Pre-built image on GHCR
+
 ## Prerequisites
 
 - Docker with the Compose v2 plugin (`docker compose version`)
@@ -107,6 +109,7 @@ appdata/
     │   └── steamcmd/                  # steam client cache
     └── config/
         ├── SpaceEngineers-Dedicated.cfg
+        ├── mods.txt                   # Steam Workshop mod IDs, one per line
         ├── Plugins/                   # drop .dll plugins here
         └── World/                     # world save files
 ```
