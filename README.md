@@ -10,7 +10,7 @@ Modernized Docker image for running a Space Engineers Dedicated Server on Linux 
 
 - Docker with the Compose v2 plugin (`docker compose version`)
 - `unzip`
-- Port `27016/UDP` open on your firewall/router
+- Ports `27016/UDP` and `8766/UDP` open on your firewall/router
 
 ## Quick Start
 
@@ -43,6 +43,8 @@ Edit `appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg`. Key settings
 sudo docker compose logs -f   # follow live logs
 ```
 
+`./stop` gives the server 60 seconds to flush its world save before force-killing it.
+
 Set `SKIP_UPDATE=1` in the environment to skip the steamcmd update on restart (faster):
 
 ```yaml
@@ -54,6 +56,34 @@ environment:
 ## Plugins
 
 Drop `.dll` plugin files into `appdata/space-engineers/config/Plugins/` and restart. The entrypoint auto-injects them into the server config.
+
+## Block Limits
+
+Two methods to cap blocks and prevent lag griefing:
+
+**PCU limits** — set in `SpaceEngineers-Dedicated.cfg`:
+
+| Setting | Description |
+|---|---|
+| `<TotalPCU>` | Global PCU cap across all players (default 320000) |
+| `<PiratePCU>` | PCU allocated to NPC/pirate grids (default 50000) |
+| `<BlockLimitsEnabled>` | `NONE`, `PCU`, or `PER_PLAYER` |
+
+**Per-block-type limits** — edit `<BlockTypeLimits>` in `SpaceEngineers-Dedicated.cfg`:
+
+```xml
+<BlockTypeLimits>
+  <dictionary>
+    <item><Key>LargeGatlingTurret</Key><Value>10</Value></item>
+  </dictionary>
+</BlockTypeLimits>
+```
+
+## Remote API
+
+SE DS includes a RESTful Remote API (HMAC-SHA1 auth) for external tools including the official VRageRemoteClient.
+
+To enable it, set `<RemoteApiEnabled>true</RemoteApiEnabled>` in `SpaceEngineers-Dedicated.cfg`. Port `8080/TCP` is already exposed in `docker-compose.yml` — open it on your firewall and connect with [VRageRemoteClient](https://www.spaceengineersgame.com/dedicated-servers/).
 
 ## Mods (Steam Workshop)
 
@@ -90,6 +120,7 @@ Run inside a **KVM VM**, not LXC — Wine requires full virtualization. Recommen
 |---|---|---|
 | 27016 | UDP | Game traffic |
 | 8766 | UDP | Steam networking |
+| 8080 | TCP | Remote API (optional) |
 
 ## Exit codes
 

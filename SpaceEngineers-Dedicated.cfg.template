@@ -120,6 +120,7 @@
   <ServerPasswordHash />
   <ServerPasswordSalt>AAAAAAAAAAAAAAAAAAAAAA==</ServerPasswordSalt>
   <Reserved />
+  <!-- Set to true to enable the Remote API for VRageRemoteClient and external tools -->
   <RemoteApiEnabled>false</RemoteApiEnabled>
   <RemoteApiPort>8080</RemoteApiPort>
   <Plugins />

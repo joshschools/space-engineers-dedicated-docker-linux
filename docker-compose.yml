@@ -13,6 +13,8 @@ services:
       - ./appdata/space-engineers/config/mods.txt:/appdata/space-engineers/mods.txt
     ports:
       - "27016:27016/udp"
+      - "8766:8766/udp"
+      - "8080:8080/tcp"
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f SpaceEngineersDedicated || exit 1"]
       interval: 30s
