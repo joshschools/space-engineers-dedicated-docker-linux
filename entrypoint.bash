@@ -71,5 +71,34 @@ else
   echo "SKIP_UPDATE=1: skipping steamcmd update"
 fi
 
+if [ -n "${DISCORD_WEBHOOK_URL:-}" ]; then
+  (
+    LOG_DIR=/appdata/space-engineers/SpaceEngineersDedicated
+    until ls "$LOG_DIR"/SpaceEngineersDedicated_*.log 2>/dev/null | head -1 | grep -q .; do sleep 2; done
+    LOG_FILE=$(ls -t "$LOG_DIR"/SpaceEngineersDedicated_*.log | head -1)
+    LAST_COUNT=""
+    tail -F "$LOG_FILE" 2>/dev/null | while IFS= read -r line; do
+      if echo "$line" | grep -q "Game ready"; then
+        curl -s -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" \
+          -d '{"embeds":[{"description":"✅ **Server ready** — players can connect","color":3066993}]}' > /dev/null
+      elif echo "$line" | grep -q "Server will restart in"; then
+        MINS=$(echo "$line" | grep -oP '\d+ minute' | head -1)
+        curl -s -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" \
+          -d "{\"embeds\":[{\"description\":\"⚠️ **Auto-restart** in ${MINS}s\",\"color\":16776960}]}" > /dev/null
+      elif echo "$line" | grep -q "^STATISTICS,"; then
+        COUNT=$(echo "$line" | cut -d',' -f11)
+        if [ -n "$COUNT" ] && [ "$COUNT" != "$LAST_COUNT" ]; then
+          LAST_COUNT=$COUNT
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" \
+            -d "{\"embeds\":[{\"description\":\"👤 Players online: **${COUNT}**\",\"color\":3447003}]}" > /dev/null
+        fi
+      fi
+    done
+  ) &
+  DISCORD_WATCHER_PID=$!
+fi
+
 runuser -l wine bash -c '/entrypoint-space_engineers.bash' \
   || die "Space Engineers server process exited with error"
+
+[ -n "${DISCORD_WATCHER_PID:-}" ] && kill "$DISCORD_WATCHER_PID" 2>/dev/null || true

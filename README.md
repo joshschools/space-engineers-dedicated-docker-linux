@@ -57,6 +57,26 @@ environment:
 
 Drop `.dll` plugin files into `appdata/space-engineers/config/Plugins/` and restart. The entrypoint auto-injects them into the server config.
 
+## Discord Notifications
+
+Create a `.env` file in the project root (gitignored) with your webhook URL:
+
+```
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
+```
+
+Copy `.env.example` as a starting point. Notifications are silently skipped if the URL is not set.
+
+| Event | Message |
+|---|---|
+| `./start` | 🚀 Server is starting… |
+| SE DS "Game ready" | ✅ Server ready — players can connect |
+| SE DS auto-restart warning | ⚠️ Auto-restart in N minutes |
+| Player count change | 👤 Players online: N |
+| `./stop` | 🔴 Server is stopping… |
+
+> Player names on join/leave are not available in the standard SE DS log — player count changes are the best proxy without a plugin or the Remote API.
+
 ## Block Limits
 
 Two methods to cap blocks and prevent lag griefing:

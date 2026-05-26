@@ -1,3 +1,5 @@
 #!/bin/bash
 set -euo pipefail
+[ -f .env ] && source .env
+./discord "🔴 **Server is stopping…**" 15158332 || true
 sudo docker compose stop --timeout 60 || { echo "ERROR: docker compose stop failed" >&2; exit 1; }
