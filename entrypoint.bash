@@ -34,9 +34,10 @@ sed -E "$SED_EXPRESSION_FULL" "$CFG" > "$TMP_CFG" && cp "$TMP_CFG" "$CFG" \
 
 MODS_FILE=/appdata/space-engineers/mods.txt
 if [ -f "$MODS_FILE" ]; then
-  python3 - "$MODS_FILE" "$WORLD/Sandbox.sbc" << 'PYEOF'
-import sys, re
-mods_file, sandbox = sys.argv[1], sys.argv[2]
+  python3 - "$MODS_FILE" "$WORLD/Sandbox.sbc" "$WORLD/Sandbox_config.sbc" << 'PYEOF'
+import sys, re, os
+mods_file = sys.argv[1]
+targets = [f for f in sys.argv[2:] if os.path.isfile(f)]
 ids = [l.strip() for l in open(mods_file) if l.strip() and not l.startswith('#')]
 if ids:
     items = ''.join(
@@ -46,16 +47,18 @@ if ids:
         for i in ids
     )
     mods_xml = f'<Mods>{items}</Mods>'
-    print(f'Injecting {len(ids)} mod(s) into Sandbox.sbc')
+    print(f'Injecting {len(ids)} mod(s) into world config files')
 else:
     mods_xml = '<Mods />'
     print('No mods configured — clearing Mods element')
-content = open(sandbox).read()
-content = re.sub(r'<Mods\s*/>', mods_xml, content)
-content = re.sub(r'<Mods>.*?</Mods>', mods_xml, content, flags=re.DOTALL)
-open(sandbox, 'w').write(content)
+for path in targets:
+    content = open(path).read()
+    content = re.sub(r'<Mods\s*/>', mods_xml, content)
+    content = re.sub(r'<Mods>.*?</Mods>', mods_xml, content, flags=re.DOTALL)
+    open(path, 'w').write(content)
+    print(f'  Patched {os.path.basename(path)}')
 PYEOF
-  [ $? -eq 0 ] || die "Failed to patch Mods in Sandbox.sbc"
+  [ $? -eq 0 ] || die "Failed to patch Mods in world config"
 fi
 
 # Set SKIP_UPDATE=1 to skip the steamcmd update step (faster restarts after initial install)
