@@ -36,7 +36,7 @@ sed -E "$SED_EXPRESSION_FULL" "$CFG" > "$TMP_CFG" && cp "$TMP_CFG" "$CFG" \
 if [ "${SKIP_UPDATE:-0}" != "1" ]; then
   echo "Running steamcmd update for AppID 298740..."
   runuser -l wine bash -c \
-    'steamcmd +@ShutdownOnFailedCommand 1 +@NoPromptForPassword 1 +login anonymous +@sSteamCmdForcePlatformType windows +force_install_dir /appdata/space-engineers/SpaceEngineersDedicated +app_update 298740 +quit' \
+    'steamcmd +@ShutdownOnFailedCommand 1 +@NoPromptForPassword 1 +force_install_dir /appdata/space-engineers/SpaceEngineersDedicated +login anonymous +@sSteamCmdForcePlatformType windows +app_update 298740 +quit' \
     || die "steamcmd failed to install/update Space Engineers Dedicated Server"
 else
   echo "SKIP_UPDATE=1: skipping steamcmd update"
