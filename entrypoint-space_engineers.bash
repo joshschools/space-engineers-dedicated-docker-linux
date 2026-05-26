@@ -3,9 +3,6 @@ set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-source ~/.profile     || die "Failed to source ~/.profile"
-source ~/.bash_profile || die "Failed to source ~/.bash_profile"
-
 SERVER_DIR=/appdata/space-engineers/SpaceEngineersDedicated/DedicatedServer64
 SERVER_EXE="$SERVER_DIR/SpaceEngineersDedicated.exe"
 
