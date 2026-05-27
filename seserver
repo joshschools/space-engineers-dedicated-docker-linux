@@ -40,7 +40,10 @@ EOF
 }
 
 load_env() {
-  [ -f .env ] && source .env
+  if [ -f .env ]; then
+    # shellcheck source=/dev/null
+    source .env
+  fi
 }
 
 # Returns 0 when ready to run the container; exits 0 with message if user must edit config first.
