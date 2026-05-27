@@ -42,6 +42,12 @@ RUN mkdir -p /home/wine/steamcmd \
 RUN mkdir -p /wineprefix /appdata/space-engineers/bins /appdata/space-engineers/config \
  && chown -R wine:wine /wineprefix /appdata
 
+# Pre-create XDG_RUNTIME_DIR and X11 socket dir as root so wine user can use them
+RUN mkdir -p /run/user/1000 /tmp/.X11-unix \
+ && chown wine:wine /run/user/1000 \
+ && chmod 700 /run/user/1000 \
+ && chmod 1777 /tmp/.X11-unix
+
 COPY install-winetricks /scripts/install-winetricks
 RUN chmod +x /scripts/install-winetricks \
  && chown wine:wine /scripts/install-winetricks

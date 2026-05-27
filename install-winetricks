@@ -4,21 +4,24 @@ set -euo pipefail
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 # Wine 11 wineserver requires XDG_RUNTIME_DIR for its socket file.
-export XDG_RUNTIME_DIR=/tmp/xdg-runtime-wine
-mkdir -p "$XDG_RUNTIME_DIR"
-chmod 700 "$XDG_RUNTIME_DIR"
+# Directory pre-created as root in the Dockerfile.
+export XDG_RUNTIME_DIR=/run/user/1000
+echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR (exists: $([ -d "$XDG_RUNTIME_DIR" ] && echo yes || echo NO))"
 
 Xvfb :5 -screen 0 1024x768x16 &
 XVFB_PID=$!
 sleep 1
 kill -0 "$XVFB_PID" 2>/dev/null || die "Xvfb failed to start"
+echo "Xvfb running (pid $XVFB_PID)"
 
 # mscoree=d prevents Wine from auto-installing Mono during wineboot; the
 # auto-install runs a subprocess in a partially-initialized prefix and fails
 # with "could not load kernel32.dll". We install Mono explicitly below.
-env WINEARCH=win64 WINEDEBUG=-all WINEDLLOVERRIDES="mscoree=d" WINEPREFIX=/wineprefix \
+echo "Starting wineboot --init..."
+env WINEARCH=win64 WINEDEBUG=err+all WINEDLLOVERRIDES="mscoree=d" WINEPREFIX=/wineprefix \
   wineboot --init /nogui \
   || die "wineboot --init failed"
+echo "wineboot --init complete."
 
 # Explicitly install Wine Mono into the now-complete prefix via msiexec.
 # Check system package location first; if absent, derive the required version
