@@ -3,6 +3,11 @@ set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+# Wine 11 wineserver requires XDG_RUNTIME_DIR for its socket file.
+export XDG_RUNTIME_DIR=/tmp/xdg-runtime-wine
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
 Xvfb :5 -screen 0 1024x768x16 &
 XVFB_PID=$!
 sleep 1
