@@ -114,7 +114,8 @@ cmd_start() {
   parse_start_flags "$@"
   load_env
   prepare_appdata
-  "$SCRIPT_DIR/discord" "🚀 **Server is starting…**" 3447003 || true
+  "$SCRIPT_DIR/discord" "🚀 **Server is starting…**" 3447003 \
+    || echo "WARNING: Discord notification failed (see message above)" >&2
   if $BUILD; then
     docker_compose up -d --build || die "Failed to start container"
   else
@@ -127,7 +128,8 @@ cmd_start() {
 
 cmd_stop() {
   load_env
-  "$SCRIPT_DIR/discord" "🔴 **Server is stopping…**" 15158332 || true
+  "$SCRIPT_DIR/discord" "🔴 **Server is stopping…**" 15158332 \
+    || echo "WARNING: Discord notification failed (see message above)" >&2
   docker_compose stop --timeout 60 || die "docker compose stop failed"
 }
 

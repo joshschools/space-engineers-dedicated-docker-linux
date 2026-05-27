@@ -10,6 +10,7 @@ Docker image for running a Space Engineers Dedicated Server on Linux via Wine. M
 
 - Docker with the Compose v2 plugin (`docker compose version`)
 - `unzip`
+- `curl` (optional; only if using Discord webhooks via `.env`)
 - Ports `27016/UDP` and `8766/UDP` open on your firewall/router
 - Recommended: add your user to the `docker` group (`sudo usermod -aG docker $USER`, then log out/in) so scripts run without a password
 
@@ -71,7 +72,7 @@ Drop `.dll` plugin files into `appdata/space-engineers/config/Plugins/` and rest
 
 ## Discord Notifications
 
-Create a `.env` file (see `.env.example`) with your webhook URL. Notifications are skipped if unset.
+Create a `.env` file (see `.env.example`) with your webhook URL. Notifications are skipped if unset. `./discord` uses `curl` only (no `python3`); failures print a warning and do not block `./seserver start` or `stop`.
 
 | Event | Message |
 |---|---|

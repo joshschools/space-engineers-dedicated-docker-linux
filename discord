@@ -2,22 +2,37 @@
 # Usage: ./discord "message" [color]
 # Colors: 3066993=green 15158332=red 16776960=yellow 3447003=blue
 # Reads DISCORD_WEBHOOK_URL from .env if present; no-op if unset.
+# Requires: curl (no python3 — JSON is built in bash)
 set -euo pipefail
+
+warn() { echo "WARNING: $*" >&2; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$SCRIPT_DIR/.env" ] && source "$SCRIPT_DIR/.env"
 [ -z "${DISCORD_WEBHOOK_URL:-}" ] && exit 0
 
+command -v curl &>/dev/null || { warn "Discord: curl not found"; exit 1; }
+
 MESSAGE="${1:-}"
 COLOR="${2:-3447003}"
+[[ "$COLOR" =~ ^[0-9]+$ ]] || COLOR=3447003
 
-PAYLOAD=$(python3 - "$MESSAGE" "$COLOR" << 'PYEOF'
-import json, sys
-print(json.dumps({"embeds": [{"description": sys.argv[1], "color": int(sys.argv[2])}]}))
-PYEOF
-)
+json_escape() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\r'/\\r}
+  s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
 
-curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+PAYLOAD="{\"embeds\":[{\"description\":\"$(json_escape "$MESSAGE")\",\"color\":${COLOR}}]}"
+
+if ! curl -sf -X POST "$DISCORD_WEBHOOK_URL" \
   -H "Content-Type: application/json" \
   -d "$PAYLOAD" \
-  > /dev/null
+  -o /dev/null; then
+  warn "Discord: webhook request failed (check DISCORD_WEBHOOK_URL in .env)"
+  exit 1
+fi
