@@ -3,23 +3,48 @@ set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+usage() {
+  cat <<'EOF'
+Usage: ./start [options]
+
+  --build       Rebuild the image before starting (slow; first install or after Dockerfile changes)
+  --no-follow   Start detached without following logs (use: docker compose logs -f)
+  -h, --help    Show this help
+EOF
+}
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib-sudo.sh
+source "$SCRIPT_DIR/lib-sudo.sh"
+
+BUILD=false
+FOLLOW_LOGS=true
+for arg in "$@"; do
+  case "$arg" in
+    --build) BUILD=true ;;
+    --no-follow) FOLLOW_LOGS=false ;;
+    -h|--help) usage; exit 0 ;;
+    *) die "Unknown option: $arg (try ./start --help)" ;;
+  esac
+done
+
 [ -f .env ] && source .env
 
-sudo mkdir -p appdata/space-engineers/bins/SpaceEngineersDedicated || die "Failed to create SpaceEngineersDedicated directory"
-sudo mkdir -p appdata/space-engineers/bins/steamcmd || die "Failed to create steamcmd directory"
-sudo mkdir -p appdata/space-engineers/config/World || die "Failed to create World directory"
-sudo mkdir -p appdata/space-engineers/config/Plugins || die "Failed to create Plugins directory"
+"${SUDO[@]}" mkdir -p appdata/space-engineers/bins/SpaceEngineersDedicated || die "Failed to create SpaceEngineersDedicated directory"
+"${SUDO[@]}" mkdir -p appdata/space-engineers/bins/steamcmd || die "Failed to create steamcmd directory"
+"${SUDO[@]}" mkdir -p appdata/space-engineers/config/World || die "Failed to create World directory"
+"${SUDO[@]}" mkdir -p appdata/space-engineers/config/Plugins || die "Failed to create Plugins directory"
 
 if [ ! -f ./appdata/space-engineers/config/mods.txt ]; then
     printf '# Steam Workshop mod IDs, one per line\n# Find the ID in the Workshop URL: ?id=XXXXXXXXXX\n# Example: 1902970975\n' \
-        | sudo tee appdata/space-engineers/config/mods.txt > /dev/null \
+        | "${SUDO[@]}" tee appdata/space-engineers/config/mods.txt > /dev/null \
         || die "Failed to create mods.txt"
 fi
 
 # Config must exist before unzip so the zip's stale config is never extracted (-n flag)
 if [ ! -f ./appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg ]; then
     echo "No config found — copying template..."
-    sudo cp SpaceEngineers-Dedicated.cfg.template \
+    "${SUDO[@]}" cp SpaceEngineers-Dedicated.cfg.template \
         appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg \
         || die "Failed to copy config template"
     echo ""
@@ -31,14 +56,22 @@ fi
 
 if [ ! -f ./appdata/space-engineers/config/World/Sandbox.sbc ]; then
     echo "World not found, initializing empty star system..."
-    sudo unzip -n star-system.zip -d ./appdata/space-engineers/config || die "Failed to extract star-system.zip"
+    "${SUDO[@]}" unzip -n star-system.zip -d ./appdata/space-engineers/config || die "Failed to extract star-system.zip"
 fi
 
 if [ "$(stat -c '%u' appdata)" != "1000" ]; then
-    echo "Setting owner of appdata to UID 1000"
-    sudo chown -R 1000:1000 appdata || die "Failed to chown appdata to 1000:1000"
+    echo "Setting owner of appdata to UID 1000 (container user)"
+    "${SUDO[@]}" chown -R 1000:1000 appdata || die "Failed to chown appdata to 1000:1000"
 fi
 
 ./discord "🚀 **Server is starting…**" 3447003 || true
-sudo docker compose up -d --build || die "Failed to start container"
-sudo docker compose logs -f
+
+if $BUILD; then
+  docker_compose up -d --build || die "Failed to start container"
+else
+  docker_compose up -d || die "Failed to start container"
+fi
+
+if $FOLLOW_LOGS; then
+  docker_compose logs -f
+fi

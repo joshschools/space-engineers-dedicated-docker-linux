@@ -65,7 +65,7 @@ fi
 if [ "${SKIP_UPDATE:-0}" != "1" ]; then
   echo "Running steamcmd update for AppID 298740..."
   runuser -l wine bash -c \
-    'steamcmd +@ShutdownOnFailedCommand 1 +@NoPromptForPassword 1 +force_install_dir /appdata/space-engineers/SpaceEngineersDedicated +login anonymous +@sSteamCmdForcePlatformType windows +app_update 298740 +quit' \
+    'export XDG_RUNTIME_DIR=/run/user/1000; steamcmd +@ShutdownOnFailedCommand 1 +@NoPromptForPassword 1 +force_install_dir /appdata/space-engineers/SpaceEngineersDedicated +login anonymous +@sSteamCmdForcePlatformType windows +app_update 298740 +quit' \
     || die "steamcmd failed to install/update Space Engineers Dedicated Server"
 else
   echo "SKIP_UPDATE=1: skipping steamcmd update"
@@ -84,7 +84,7 @@ if [ -n "${DISCORD_WEBHOOK_URL:-}" ]; then
       elif echo "$line" | grep -q "Server will restart in"; then
         MINS=$(echo "$line" | grep -oP '\d+ minute' | head -1)
         curl -s -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" \
-          -d "{\"embeds\":[{\"description\":\"⚠️ **Auto-restart** in ${MINS}s\",\"color\":16776960}]}" > /dev/null
+          -d "{\"embeds\":[{\"description\":\"⚠️ **Auto-restart** in ${MINS}\",\"color\":16776960}]}" > /dev/null
       elif echo "$line" | grep -q "^STATISTICS,"; then
         COUNT=$(echo "$line" | cut -d',' -f11)
         if [ -n "$COUNT" ] && [ "$COUNT" != "$LAST_COUNT" ]; then

@@ -1,4 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-./stop || { echo "ERROR: stop failed" >&2; exit 1; }
-./start || { echo "ERROR: start failed" >&2; exit 1; }
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/stop" || { echo "ERROR: stop failed" >&2; exit 1; }
+exec "$SCRIPT_DIR/start" "$@"

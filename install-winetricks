@@ -3,52 +3,41 @@ set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-# Wine 11 wineserver requires XDG_RUNTIME_DIR for its socket file.
-# Directory pre-created as root in the Dockerfile.
 export XDG_RUNTIME_DIR=/run/user/1000
-echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR (exists: $([ -d "$XDG_RUNTIME_DIR" ] && echo yes || echo NO))"
+export DISPLAY=:5.0
 
 Xvfb :5 -screen 0 1024x768x16 &
 XVFB_PID=$!
 sleep 1
 kill -0 "$XVFB_PID" 2>/dev/null || die "Xvfb failed to start"
-echo "Xvfb running (pid $XVFB_PID)"
 
 # mscoree=d prevents Wine from auto-installing Mono during wineboot; the
-# auto-install runs a subprocess in a partially-initialized prefix and fails
-# with "could not load kernel32.dll". We install Mono explicitly below.
-echo "Starting wineboot --init..."
-env WINEARCH=win64 WINEDEBUG=err+all WINEDLLOVERRIDES="mscoree=d" WINEPREFIX=/wineprefix \
+# auto-install runs in a partially-initialized prefix and fails.
+env WINEARCH=win64 WINEDEBUG=-all WINEDLLOVERRIDES="mscoree=d" WINEPREFIX=/wineprefix \
   wineboot --init /nogui \
   || die "wineboot --init failed"
-echo "wineboot --init complete."
 
-# MSI was pre-downloaded as root in the Dockerfile; wine user cannot write /usr/share/wine/
-MONO_MSI=$(find /usr/share/wine/mono/ -name "wine-mono-*.msi" 2>/dev/null \
-  | sort -V | tail -1)
+MONO_MSI=$(find /usr/share/wine/mono/ -name 'wine-mono-*.msi' 2>/dev/null | sort -V | tail -1)
 [ -n "$MONO_MSI" ] || die "wine-mono MSI not found in /usr/share/wine/mono/"
-echo "Installing Wine Mono from $(basename "$MONO_MSI")..."
-env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   wine msiexec /i "$MONO_MSI" REBOOT=ReallySuppress \
   || die "Failed to install Wine Mono"
 
 env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
-  winetricks corefonts \
+  winetricks -q corefonts \
   || die "winetricks corefonts failed"
 
-# vcrun2019 bundles 2015+2017+2019, replacing the old vcrun2013+vcrun2017 combo
-env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   winetricks -q vcrun2019 \
   || die "winetricks vcrun2019 failed"
 
 # winetricks creates HKLM\...\VisualStudio\14.0\VC\Runtimes\x64 but NOT the
-# Classes\Installer\Dependencies key that SE DS actually checks at startup.
-# Write it directly to system.reg to avoid wineserver flush timing issues.
+# Classes\Installer\Dependencies key that SE DS checks at startup.
 python3 - << 'PYEOF'
-import re, sys
+import re
 
 reg = '/wineprefix/system.reg'
-with open(reg, 'r') as f:
+with open(reg) as f:
     content = f.read()
 
 m = re.search(r'Runtimes\\\\x64\].*?"Version"="([^"]+)"', content, re.DOTALL)
@@ -65,17 +54,16 @@ key = (
 )
 with open(reg, 'a') as f:
     f.write(key)
-print(f'Added Installer\\Dependencies registry key (version {vcver})')
+print(f'Added VC++ Installer\\Dependencies registry key (version {vcver})')
 PYEOF
 [ $? -eq 0 ] || die "Failed to write VC++ Installer\\Dependencies registry key"
 
-# faudio provides XAudio2 support needed for headless audio init
-env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
+env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   winetricks -q faudio \
   || die "winetricks faudio failed"
 
 env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
-  winetricks sound=disabled \
+  winetricks -q sound=disabled \
   || die "winetricks sound=disabled failed"
 
 kill "$XVFB_PID" 2>/dev/null || true

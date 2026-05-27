@@ -11,7 +11,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MESSAGE="${1:-}"
 COLOR="${2:-3447003}"
 
+PAYLOAD=$(python3 - "$MESSAGE" "$COLOR" << 'PYEOF'
+import json, sys
+print(json.dumps({"embeds": [{"description": sys.argv[1], "color": int(sys.argv[2])}]}))
+PYEOF
+)
+
 curl -s -X POST "$DISCORD_WEBHOOK_URL" \
   -H "Content-Type: application/json" \
-  -d "{\"embeds\":[{\"description\":\"$MESSAGE\",\"color\":$COLOR}]}" \
+  -d "$PAYLOAD" \
   > /dev/null

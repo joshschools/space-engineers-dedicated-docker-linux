@@ -7,6 +7,8 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      - SKIP_UPDATE=${SKIP_UPDATE:-0}
     volumes:
       - ./appdata/space-engineers/config/World:/appdata/space-engineers/World
       - ./appdata/space-engineers/config/Plugins:/appdata/space-engineers/Plugins
@@ -23,7 +25,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
     logging:
       driver: "json-file"
       options:

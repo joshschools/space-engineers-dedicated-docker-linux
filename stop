@@ -1,5 +1,10 @@
 #!/bin/bash
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib-sudo.sh
+source "$SCRIPT_DIR/lib-sudo.sh"
+
 [ -f .env ] && source .env
 ./discord "🔴 **Server is stopping…**" 15158332 || true
-sudo docker compose stop --timeout 60 || { echo "ERROR: docker compose stop failed" >&2; exit 1; }
+docker_compose stop --timeout 60 || { echo "ERROR: docker compose stop failed" >&2; exit 1; }

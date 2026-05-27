@@ -1,63 +1,73 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for working in this repository.
 
 ## What this is
 
-A Docker image that runs the Space Engineers Dedicated Server (Windows-only `.exe`) on Linux via Wine 11. There is no native Linux SE DS binary — Wine is not a workaround, it's the only option.
+A Docker image that runs the Space Engineers Dedicated Server (Windows `.exe`) on Linux via Wine 11. No native Linux SE DS binary exists.
 
 ## Common commands
 
 ```bash
-./start      # first run: copies config template and exits; subsequent runs: start server
-./stop       # stop the container
-./restart    # stop then start
-sudo docker compose logs -f   # follow live logs
-sudo docker compose build     # build image locally (~20-30 min first time; dotnet48 is slow)
+./start              # start (steamcmd update unless SKIP_UPDATE=1 in .env)
+./start --build      # rebuild image, then start
+./start --no-follow  # start detached
+./stop
+./restart [--build] [--no-follow]
+docker compose logs -f
+docker compose build
 ```
 
-To skip the steamcmd update on restart (faster):
-```yaml
-# docker-compose.yml
-environment:
-  - SKIP_UPDATE=1
-```
+`start`/`stop` source `lib-sudo.sh`: use `sudo` only when `docker compose` is not available to the current user.
+
+Skip steamcmd on restart: set `SKIP_UPDATE=1` in `.env` (wired through `docker-compose.yml`).
 
 ## Architecture
 
 ### Build-time (Dockerfile + install-winetricks)
 
-The image is built once and the Wine prefix is baked in. `install-winetricks` runs as the `wine` user during `docker build` and:
-1. Starts a headless Xvfb display (required by winetricks GUI installers)
-2. Installs `dotnet40` → `dotnet48` (order matters: 48 is a patch on 40) → `vcrun2019` → `faudio`
-3. Injects a registry key directly into `/wineprefix/system.reg` via Python — SE DS checks `HKLM\SOFTWARE\Classes\Installer\Dependencies\Microsoft.VS.VC_RuntimeAdditionalVSU_amd64,v14` at startup and aborts if it's missing; winetricks creates a *different* key and `wine reg add` has flush-timing issues during build
+`install-winetricks` runs as `wine` during `docker build`:
 
-Ubuntu 24.04 ships an `ubuntu` user at UID 1000, which conflicts with the UID the `start` script chowns `appdata/` to. The Dockerfile renames `ubuntu` → `wine` via `usermod`/`groupmod` rather than creating a new user.
+1. Xvfb on `:5` with `DISPLAY=:5.0`
+2. `wineboot --init` with `mscoree=d` (blocks broken auto-Mono install)
+3. Wine Mono MSI from `/usr/share/wine/mono/` (downloaded in Dockerfile as root)
+4. winetricks: `corefonts`, `vcrun2019`, `faudio`, `sound=disabled`
+5. Python appends `HKLM\...\Installer\Dependencies\Microsoft.VS.VC_RuntimeAdditionalVSU_amd64,v14` to `system.reg`
 
-SteamCMD is installed via a wrapper script at `/usr/local/bin/steamcmd` that `cd`s into `/home/wine/steamcmd` before calling `./steamcmd.sh` — necessary because `steamcmd.sh` uses `$(dirname "$0")` for relative paths, which breaks if called via symlink.
+Does **not** use winetricks `dotnet40`/`dotnet48` — Wine 11 + Wine Mono provides .NET for SE DS.
+
+Ubuntu 24.04 `ubuntu` user (UID 1000) is renamed to `wine` to match `start` chown on `appdata/`.
+
+SteamCMD wrapper at `/usr/local/bin/steamcmd` `cd`s to `/home/wine/steamcmd` before `steamcmd.sh`.
 
 ### Runtime (entrypoint.bash → entrypoint-space_engineers.bash)
 
-`entrypoint.bash` (runs as root):
-- Validates that World, Sandbox.sbc, and cfg exist (exits 129/130/131 on failure)
-- Patches `<LoadWorld>` in the cfg to the container-internal path using `sed`
-- Builds the `<Plugins>` XML element from any `.dll` files in the Plugins volume
-- Runs `steamcmd` to update SE DS (AppID 298740, platform `windows`) unless `SKIP_UPDATE=1`
-- Drops to `wine` user to run `entrypoint-space_engineers.bash`
+`entrypoint.bash` (root):
 
-`entrypoint-space_engineers.bash` (runs as wine user):
-- Launches `SpaceEngineersDedicated.exe` under Wine with `WINEDLLOVERRIDES` forcing native Microsoft DLLs for all `msvcp140*` and `vcruntime140*` variants — winetricks installs the real PE files but doesn't create the DLL override registry entries
+- Validates world/cfg (exit 129/130/131)
+- Patches `<LoadWorld>` and `<Plugins>` in cfg
+- Injects Workshop mods from `mods.txt` into `Sandbox.sbc` / `Sandbox_config.sbc`
+- Runs steamcmd AppID 298740 unless `SKIP_UPDATE=1` (with `XDG_RUNTIME_DIR` for wine user)
+- Optional Discord log watcher
+- `runuser` → `entrypoint-space_engineers.bash`
+
+`entrypoint-space_engineers.bash` (wine):
+
+- `XDG_RUNTIME_DIR=/run/user/1000`
+- `WINEDLLOVERRIDES` native for `msvcp140*` / `vcruntime140*`
+- Launches `DedicatedServer64/SpaceEngineersDedicated.exe`
 
 ### Volume layout
 
-| Host path | Container path | Purpose |
+| Host | Container | Purpose |
 |---|---|---|
 | `appdata/…/config/World/` | `/appdata/space-engineers/World` | World save |
 | `appdata/…/config/Plugins/` | `/appdata/space-engineers/Plugins` | Plugin DLLs |
-| `appdata/…/config/SpaceEngineers-Dedicated.cfg` | `/appdata/…/SpaceEngineersDedicated/SpaceEngineers-Dedicated.cfg` | Server config |
-| `appdata/…/bins/SpaceEngineersDedicated/` | `/appdata/space-engineers/SpaceEngineersDedicated` | SE DS install (steamcmd writes here) |
-| `appdata/…/bins/steamcmd/` | `/home/wine/.steam` | Steam client cache |
+| `appdata/…/config/SpaceEngineers-Dedicated.cfg` | `…/SpaceEngineersDedicated/SpaceEngineers-Dedicated.cfg` | Server config |
+| `appdata/…/bins/SpaceEngineersDedicated/` | `/appdata/space-engineers/SpaceEngineersDedicated` | SE DS install |
+| `appdata/…/bins/steamcmd/` | `/home/wine/.steam` | Steam cache |
+| `appdata/…/config/mods.txt` | `/appdata/space-engineers/mods.txt` | Workshop IDs |
 
 ### CI/CD
 
-`.github/workflows/build-push.yml` triggers on push to `main` or `master`, builds with `docker/build-push-action`, and pushes to `ghcr.io/joshschools/space-engineers-dedicated-docker-linux:latest` plus a `sha-<hash>` tag. GHA layer caching (`type=gha`) is critical — the dotnet48 installer takes 20-30 min without a cache hit.
+`.github/workflows/build-push.yml` on push to `main`/`master` → `ghcr.io/<repo>:latest` and `sha-<hash>`. GHA cache is important for winetricks layer reuse.

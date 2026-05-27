@@ -1,0 +1,5 @@
+appdata/
+.env
+.git/
+*.md
+CLAUDE.md
