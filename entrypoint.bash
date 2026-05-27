@@ -82,9 +82,10 @@ if [ -n "${DISCORD_WEBHOOK_URL:-}" ]; then
         curl -s -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" \
           -d '{"embeds":[{"description":"✅ **Server ready** — players can connect","color":3066993}]}' > /dev/null
       elif echo "$line" | grep -q "Server will restart in"; then
-        MINS=$(echo "$line" | grep -oP '\d+ minute' | head -1)
+        # Log line uses "N minutes" (or "1 minute"); match the full phrase, not "N minute"
+        WHEN=$(echo "$line" | grep -oP '\d+\s+minutes?' | head -1)
         curl -s -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" \
-          -d "{\"embeds\":[{\"description\":\"⚠️ **Auto-restart** in ${MINS}\",\"color\":16776960}]}" > /dev/null
+          -d "{\"embeds\":[{\"description\":\"⚠️ **Auto-restart** in ${WHEN}\",\"color\":16776960}]}" > /dev/null
       elif echo "$line" | grep -q "^STATISTICS,"; then
         COUNT=$(echo "$line" | cut -d',' -f11)
         if [ -n "$COUNT" ] && [ "$COUNT" != "$LAST_COUNT" ]; then
