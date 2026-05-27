@@ -9,6 +9,8 @@ SERVER_EXE="$SERVER_DIR/SpaceEngineersDedicated.exe"
 [ -d "$SERVER_DIR" ] || die "DedicatedServer64 directory not found at $SERVER_DIR — did steamcmd finish successfully?"
 [ -f "$SERVER_EXE" ] || die "SpaceEngineersDedicated.exe not found at $SERVER_EXE — did steamcmd finish successfully?"
 
+export XDG_RUNTIME_DIR=/run/user/1000
+
 cd "$SERVER_DIR"
 env WINEARCH=win64 \
     WINEDEBUG=-all \

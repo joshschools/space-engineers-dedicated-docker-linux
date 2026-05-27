@@ -98,6 +98,8 @@ if [ -n "${DISCORD_WEBHOOK_URL:-}" ]; then
   DISCORD_WATCHER_PID=$!
 fi
 
+mkdir -p /run/user/1000 && chown wine:wine /run/user/1000 && chmod 700 /run/user/1000
+
 runuser -l wine bash -c '/entrypoint-space_engineers.bash' \
   || die "Space Engineers server process exited with error"
 
