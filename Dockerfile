@@ -48,6 +48,16 @@ RUN mkdir -p /run/user/1000 /tmp/.X11-unix \
  && chmod 700 /run/user/1000 \
  && chmod 1777 /tmp/.X11-unix
 
+# Download wine-mono MSI as root (wine user cannot write /usr/share/wine/mono/)
+RUN mkdir -p /usr/share/wine/mono \
+ && MSCOREE=$(find /usr/lib/wine -name 'mscoree.so' 2>/dev/null | head -1) \
+ && MONO_VER=$([ -n "$MSCOREE" ] && grep -ao 'wine-mono-[0-9.]*' "$MSCOREE" 2>/dev/null | head -1 | sed 's/wine-mono-//' || echo '') \
+ && [ -n "$MONO_VER" ] || MONO_VER=9.4.0 \
+ && echo "Downloading wine-mono ${MONO_VER}..." \
+ && wget -q -O "/usr/share/wine/mono/wine-mono-${MONO_VER}-x86.msi" \
+         "https://dl.winehq.org/wine/wine-mono/${MONO_VER}/wine-mono-${MONO_VER}-x86.msi" \
+ && echo "wine-mono ${MONO_VER} ready"
+
 COPY install-winetricks /scripts/install-winetricks
 RUN chmod +x /scripts/install-winetricks \
  && chown wine:wine /scripts/install-winetricks

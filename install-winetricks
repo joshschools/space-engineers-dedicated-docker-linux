@@ -23,23 +23,10 @@ env WINEARCH=win64 WINEDEBUG=err+all WINEDLLOVERRIDES="mscoree=d" WINEPREFIX=/wi
   || die "wineboot --init failed"
 echo "wineboot --init complete."
 
-# Explicitly install Wine Mono into the now-complete prefix via msiexec.
-# Check system package location first; if absent, derive the required version
-# from Wine's own mscoree binary and download it.
+# MSI was pre-downloaded as root in the Dockerfile; wine user cannot write /usr/share/wine/
 MONO_MSI=$(find /usr/share/wine/mono/ -name "wine-mono-*.msi" 2>/dev/null \
   | sort -V | tail -1)
-if [ -z "$MONO_MSI" ]; then
-  MONO_VER=$(grep -ao 'wine-mono-[0-9.]*' \
-    "$(find /usr/lib/wine -name 'mscoree.so' 2>/dev/null | head -1)" \
-    2>/dev/null | head -1 | sed 's/wine-mono-//')
-  [ -n "$MONO_VER" ] || MONO_VER=9.4.0
-  echo "Downloading wine-mono ${MONO_VER}..."
-  mkdir -p /usr/share/wine/mono
-  wget -q -O "/usr/share/wine/mono/wine-mono-${MONO_VER}-x86.msi" \
-    "https://dl.winehq.org/wine/wine-mono/${MONO_VER}/wine-mono-${MONO_VER}-x86.msi" \
-    || die "Failed to download wine-mono ${MONO_VER}"
-  MONO_MSI="/usr/share/wine/mono/wine-mono-${MONO_VER}-x86.msi"
-fi
+[ -n "$MONO_MSI" ] || die "wine-mono MSI not found in /usr/share/wine/mono/"
 echo "Installing Wine Mono from $(basename "$MONO_MSI")..."
 env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   wine msiexec /i "$MONO_MSI" REBOOT=ReallySuppress \
