@@ -16,22 +16,23 @@ env WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
   winetricks corefonts \
   || die "winetricks corefonts failed"
 
-# Wine 11 pre-populates .NET NDP registry keys that cause the dotnet40 installer
-# to exit 236 ("newer version detected"). `wine reg delete` has a wineserver flush
-# race, so instead: kill wineserver to flush system.reg to disk, then edit it
-# directly — same pattern used for the VC++ key below.
+# Wine 11's builtin mscoree.dll writes .NET NDP registry keys when it loads.
+# Deleting the keys from system.reg isn't enough: winetricks' intermediate wine
+# calls (remove_mono, winecfg) start a wineserver that loads mscoree and
+# re-creates the keys before the installer runs, causing exit 236.
+# Fix: kill wineserver to flush disk state, strip NDP keys from system.reg,
+# AND set mscoree=disabled in user.reg DllOverrides so no wine process can
+# load the builtin and re-create the keys. winetricks' dotnet40 post-install
+# will overwrite the override to "native" once the real mscoree.dll is in place.
 env WINEARCH=win64 WINEPREFIX=/wineprefix wineserver -k 2>/dev/null || true
 sleep 2
 python3 - << 'PYEOF'
-import pathlib
+import pathlib, re
 
+# Strip NDP sections from system.reg
 reg = pathlib.Path('/wineprefix/system.reg')
-content = reg.read_text()
-lines = content.split('\n')
-result = []
-in_ndp = False
-removed = 0
-
+lines = reg.read_text().split('\n')
+result, in_ndp, removed = [], False, 0
 for line in lines:
     if line.startswith('['):
         in_ndp = '\\\\NET Framework Setup\\\\NDP' in line
@@ -39,11 +40,29 @@ for line in lines:
         removed += 1
     else:
         result.append(line)
-
 reg.write_text('\n'.join(result))
-print(f'Removed {removed} NDP key lines from system.reg')
+print(f'Removed {removed} NDP lines from system.reg')
+
+# Add mscoree=disabled to HKCU DllOverrides in user.reg so the builtin mscoree
+# cannot load and re-populate the NDP keys during winetricks' internal wine calls.
+user_reg = pathlib.Path('/wineprefix/user.reg')
+uc = user_reg.read_text()
+if '"mscoree"=' in uc:
+    uc = re.sub(r'"mscoree"="[^"]*"', '"mscoree"="disabled"', uc)
+    print('Updated mscoree=disabled in user.reg')
+elif '[Software\\\\Wine\\\\DllOverrides]' in uc:
+    uc = re.sub(
+        r'(\[Software\\\\Wine\\\\DllOverrides\][^\n]*\n(?:#time=[^\n]+\n)?)',
+        r'\1"mscoree"="disabled"\n',
+        uc,
+    )
+    print('Added mscoree=disabled to user.reg DllOverrides')
+else:
+    uc += '\n[Software\\\\Wine\\\\DllOverrides] 1779755420\n#time=1dceca6d5365a46\n"mscoree"="disabled"\n'
+    print('Created DllOverrides section with mscoree=disabled in user.reg')
+user_reg.write_text(uc)
 PYEOF
-[ $? -eq 0 ] || die "Failed to remove NDP keys from system.reg"
+[ $? -eq 0 ] || die "Failed to clear NDP keys / set mscoree override"
 
 # dotnet40 must be installed before dotnet48 (48 is a patch on top of 40)
 env DISPLAY=:5.0 WINEARCH=win64 WINEDEBUG=-all WINEPREFIX=/wineprefix \
