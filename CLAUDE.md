@@ -9,16 +9,12 @@ A Docker image that runs the Space Engineers Dedicated Server (Windows `.exe`) o
 ## Common commands
 
 ```bash
-./start              # start (steamcmd update unless SKIP_UPDATE=1 in .env)
-./start --build      # rebuild image, then start
-./start --no-follow  # start detached
-./stop
-./restart [--build] [--no-follow]
-docker compose logs -f
-docker compose build
+./seserver install   # first-time appdata + image build
+./seserver start [--build] [--no-follow]
+./seserver stop | restart | status | logs | build | help
 ```
 
-`start`/`stop` source `lib-sudo.sh`: use `sudo` only when `docker compose` is not available to the current user.
+Entry point: `seserver` (sources `lib-sudo.sh`). Legacy `./start`, `./stop`, `./restart` exec into `seserver`.
 
 Skip steamcmd on restart: set `SKIP_UPDATE=1` in `.env` (wired through `docker-compose.yml`).
 
@@ -36,7 +32,7 @@ Skip steamcmd on restart: set `SKIP_UPDATE=1` in `.env` (wired through `docker-c
 
 Does **not** use winetricks `dotnet40`/`dotnet48` — Wine 11 + Wine Mono provides .NET for SE DS.
 
-Ubuntu 24.04 `ubuntu` user (UID 1000) is renamed to `wine` to match `start` chown on `appdata/`.
+Ubuntu 24.04 `ubuntu` user (UID 1000) is renamed to `wine` to match `seserver` chown on `appdata/`.
 
 SteamCMD wrapper at `/usr/local/bin/steamcmd` `cd`s to `/home/wine/steamcmd` before `steamcmd.sh`.
 

@@ -1,0 +1,186 @@
+#!/bin/bash
+set -euo pipefail
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+# shellcheck source=lib-sudo.sh
+source "$SCRIPT_DIR/lib-sudo.sh"
+
+usage() {
+  cat <<'EOF'
+Space Engineers dedicated server (Docker + Wine)
+
+Usage: ./seserver <command> [options]
+
+Commands:
+  install       First-time setup: appdata dirs, world, config template, build image
+  start         Start the server (creates appdata if missing)
+  stop          Graceful stop (60s save window)
+  restart       Stop then start
+  status        Container state and recent log hint
+  logs          Follow container logs (docker compose logs -f)
+  build         Build or rebuild the Docker image only
+
+Options (start / restart):
+  --build       Rebuild image before starting
+  --no-follow   Do not tail logs after start
+
+Examples:
+  ./seserver install          # first run on a new machine
+  ./seserver start            # start and follow logs
+  ./seserver start --no-follow
+  ./seserver restart --build
+  ./seserver status
+  ./seserver logs
+
+Legacy wrappers ./start, ./stop, and ./restart call this script.
+EOF
+}
+
+load_env() {
+  [ -f .env ] && source .env
+}
+
+# Returns 0 when ready to run the container; exits 0 with message if user must edit config first.
+prepare_appdata() {
+  "${SUDO[@]}" mkdir -p appdata/space-engineers/bins/SpaceEngineersDedicated \
+    appdata/space-engineers/bins/steamcmd \
+    appdata/space-engineers/config/World \
+    appdata/space-engineers/config/Plugins \
+    || die "Failed to create appdata directories"
+
+  if [ ! -f ./appdata/space-engineers/config/mods.txt ]; then
+    printf '# Steam Workshop mod IDs, one per line\n# Find the ID in the Workshop URL: ?id=XXXXXXXXXX\n# Example: 1902970975\n' \
+      | "${SUDO[@]}" tee appdata/space-engineers/config/mods.txt > /dev/null \
+      || die "Failed to create mods.txt"
+  fi
+
+  if [ ! -f ./appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg ]; then
+    echo "No config found — copying template..."
+    "${SUDO[@]}" cp SpaceEngineers-Dedicated.cfg.template \
+      appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg \
+      || die "Failed to copy config template"
+    echo ""
+    echo "  Config: appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg"
+    echo "  Add your Steam64 ID under <Administrators>, then run: ./seserver start"
+    echo ""
+    exit 0
+  fi
+
+  if [ ! -f ./appdata/space-engineers/config/World/Sandbox.sbc ]; then
+    echo "World not found — extracting default star system..."
+    "${SUDO[@]}" unzip -n star-system.zip -d ./appdata/space-engineers/config \
+      || die "Failed to extract star-system.zip"
+  fi
+
+  if [ "$(stat -c '%u' appdata)" != "1000" ]; then
+    echo "Setting owner of appdata to UID 1000 (container user)"
+    "${SUDO[@]}" chown -R 1000:1000 appdata || die "Failed to chown appdata"
+  fi
+}
+
+parse_start_flags() {
+  BUILD=false
+  FOLLOW_LOGS=true
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --build) BUILD=true ;;
+      --no-follow) FOLLOW_LOGS=false ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "Unknown option: $1" ;;
+    esac
+    shift
+  done
+}
+
+cmd_install() {
+  [ $# -gt 0 ] && die "install takes no options (use: ./seserver install)"
+  load_env
+  prepare_appdata
+  echo "Building Docker image..."
+  docker_compose build || die "Image build failed"
+  echo ""
+  echo "Install complete. Start with: ./seserver start"
+}
+
+cmd_build() {
+  load_env
+  docker_compose build || die "Image build failed"
+}
+
+cmd_start() {
+  parse_start_flags "$@"
+  load_env
+  prepare_appdata
+  "$SCRIPT_DIR/discord" "🚀 **Server is starting…**" 3447003 || true
+  if $BUILD; then
+    docker_compose up -d --build || die "Failed to start container"
+  else
+    docker_compose up -d || die "Failed to start container"
+  fi
+  if $FOLLOW_LOGS; then
+    docker_compose logs -f
+  fi
+}
+
+cmd_stop() {
+  load_env
+  "$SCRIPT_DIR/discord" "🔴 **Server is stopping…**" 15158332 || true
+  docker_compose stop --timeout 60 || die "docker compose stop failed"
+}
+
+cmd_restart() {
+  cmd_stop
+  cmd_start "$@"
+}
+
+cmd_status() {
+  load_env
+  echo "=== Container ==="
+  docker_compose ps || true
+  echo ""
+  echo "=== Recent logs ==="
+  if docker_compose ps --status running -q 2>/dev/null | grep -q .; then
+    docker_compose logs --tail 20 2>/dev/null | tail -15 || true
+    echo ""
+    if docker_compose logs 2>/dev/null | grep -q "Game ready"; then
+      echo "State: Game ready (server accepting players)"
+    elif docker_compose logs 2>/dev/null | grep -q "C++ redistributable"; then
+      echo "State: FAILED — VC++ runtime check (rebuild image: ./seserver install --build)"
+    elif docker_compose logs 2>/dev/null | grep -q "Server successfully started"; then
+      echo "State: Starting (Steam connected, world loading…)"
+    else
+      echo "State: Starting or updating via steamcmd…"
+    fi
+  else
+    echo "State: Not running"
+  fi
+}
+
+cmd_logs() {
+  load_env
+  docker_compose logs -f "$@"
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+
+  case "$cmd" in
+    install) cmd_install "$@" ;;
+    start)   cmd_start "$@" ;;
+    stop)    cmd_stop "$@" ;;
+    restart) cmd_restart "$@" ;;
+    status)  cmd_status "$@" ;;
+    logs)    cmd_logs "$@" ;;
+    build)   cmd_build "$@" ;;
+    help|-h|--help|"") usage ;;
+    *)
+      die "Unknown command: $cmd (try ./seserver help)"
+      ;;
+  esac
+}
+
+main "$@"

@@ -18,27 +18,32 @@ Docker image for running a Space Engineers Dedicated Server on Linux via Wine. M
 ```bash
 git clone https://github.com/joshschools/space-engineers-dedicated-docker-linux.git
 cd space-engineers-dedicated-docker-linux
-./start --build    # first run: build image, create config, then exit to edit cfg
+./seserver install    # first run: appdata + build image; may exit to edit config
 ```
 
 Edit `appdata/space-engineers/config/SpaceEngineers-Dedicated.cfg` (add your Steam64 ID to `<Administrators>`), then:
 
 ```bash
-./start            # start server and follow logs
-./start --no-follow   # start detached (logs: docker compose logs -f)
+./seserver start           # start and follow logs
+./seserver start --no-follow   # start detached
 ```
 
-`start` and `stop` use `sudo` only when the current user cannot run `docker compose` directly.
+`./seserver` uses `sudo` only when the current user cannot run `docker compose` directly. Legacy `./start`, `./stop`, and `./restart` still work.
 
 ## Managing the server
 
 ```bash
-./start                 # start (pull image if needed; steamcmd update unless SKIP_UPDATE=1)
-./start --build         # rebuild image from Dockerfile, then start
-./start --no-follow     # start without tailing logs
-./stop                  # graceful stop (60s save window)
-./restart               # stop then start (passes --build / --no-follow if given)
-docker compose logs -f  # follow live logs
+./seserver install              # first-time: dirs, world, config, build image
+./seserver start                # start (steamcmd update unless SKIP_UPDATE=1)
+./seserver start --build        # rebuild image, then start
+./seserver start --no-follow    # start without tailing logs
+./seserver stop                 # graceful stop (60s save window)
+./seserver restart              # stop then start
+./seserver restart --build --no-follow
+./seserver status               # container + log summary
+./seserver logs                 # follow live logs
+./seserver build                # rebuild image only
+./seserver help
 ```
 
 Set `SKIP_UPDATE=1` in `.env` to skip the steamcmd update on restart (faster after the first install):
@@ -70,11 +75,11 @@ Create a `.env` file (see `.env.example`) with your webhook URL. Notifications a
 
 | Event | Message |
 |---|---|
-| `./start` | Server is starting |
+| `./seserver start` | Server is starting |
 | SE DS "Game ready" | Server ready — players can connect |
 | SE DS auto-restart warning | Auto-restart countdown |
 | Player count change | Players online (from STATISTICS log lines) |
-| `./stop` | Server is stopping |
+| `./seserver stop` | Server is stopping |
 
 Player names on join/leave are not in the default SE DS log; player count is the best proxy without a plugin or Remote API.
 
@@ -109,8 +114,8 @@ Restart after changing the list. Mods are injected into the world `Sandbox.sbc` 
 CI publishes `ghcr.io/joshschools/space-engineers-dedicated-docker-linux:latest`. To build on your machine:
 
 ```bash
-./start --build
-# or: docker compose build   # ~5–15 min with cache; longer on first build
+./seserver install
+# or: ./seserver build        # ~5–15 min with cache; longer on first build
 ```
 
 Pin a specific build: `image: ghcr.io/joshschools/space-engineers-dedicated-docker-linux:sha-<commit>` in `docker-compose.yml`.
@@ -129,7 +134,7 @@ On the guest VM:
 
 1. Install Docker (Engine + Compose plugin).
 2. `sudo usermod -aG docker $USER` and re-login.
-3. Clone this repo, run `./start --build`, configure, `./start`.
+3. Clone this repo, run `./seserver install`, configure, `./seserver start`.
 4. Forward **27016/udp** and **8766/udp** from your router to the VM.
 
 ## Ports

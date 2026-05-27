@@ -1,6 +1,2 @@
 #!/bin/bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-"$SCRIPT_DIR/stop" || { echo "ERROR: stop failed" >&2; exit 1; }
-exec "$SCRIPT_DIR/start" "$@"
+exec "$(cd "$(dirname "$0")" && pwd)/seserver" restart "$@"
